@@ -8,6 +8,10 @@ import morgan from 'morgan';
 import compression from "compression";
 import connectDb from './config/db';
 
+import commentRoutes from './route/commentRoutes';
+import postRoutes from './route/postRoutes';
+import userRoutes from './route/userRoutes';
+
 
 dotenv.config({
     path: './.env',
@@ -15,7 +19,7 @@ dotenv.config({
 
 const app = express();
 
-const PORT = 5000
+const PORT = process.env.PORT || 6000
 
 
 app.use(cors({
@@ -34,7 +38,17 @@ app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 connectDb();
 
-const server =
+
+// Routes
+app.get('/', (req: Request, res: Response) => {
+  return res.send("welcome to Royalchat");
+  
+});
+
+app.use('/api/posts', postRoutes);
+app.use('/api/auth', userRoutes);
+app.use('/api/comment', commentRoutes);
+
 
 // initialize server
 app.listen(PORT, () => {

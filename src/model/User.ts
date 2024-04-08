@@ -1,16 +1,16 @@
 import mongoose, { Schema, Document, model } from "mongoose";
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import Post from "./Post";
 
 export interface IUser extends Document {
     username: string;
-    password: string;
+    password: string; 
     email: string;
     avatar?: string;
-    matchPassword: (enteredPassword: string) => Promise<boolean>;
+    // matchPassword: (enteredPassword: string) => Promise<boolean>;
     isVerified?: boolean;
     posts?: Array<object>;
-}
+  }
 
 const UserSchema: Schema = new Schema(
     {
@@ -22,12 +22,15 @@ const UserSchema: Schema = new Schema(
             type: String,
             required: true,
             unique: true,
+            match: [
+                /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+                'Please add a valid email'
+              ]
         },
         password: {
             type: String,
             required: [true, 'Please add a password of min 6 characters'],
             minlength: 6,
-            select: false
         },
         avatar: {
             type: String,
@@ -55,15 +58,6 @@ UserSchema.methods.matchPassword = async function (enteredPassword: string) {
     return await bcrypt.compare(enteredPassword, this.password);
 };
 
-UserSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) {
-        return next();
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    this.password = bcrypt.hash(this.password.toString(), salt);
-    next();
-});
 
 const User = model<IUser>('User', UserSchema);
 export default User;

@@ -1,6 +1,6 @@
 import {NextFunction, Request, Response} from "express";
 import  jwt, {Secret} from "jsonwebtoken";
-import User from "model/User";
+import User from "../model/User";
 
 
 // Define the `user` property and its type

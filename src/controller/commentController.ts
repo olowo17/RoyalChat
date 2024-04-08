@@ -31,7 +31,7 @@ const deleteComment = async (req: Request, res: Response) => {
   }
 };
 
-// edit request to edit a comment
+// update a comment
 const editComment = async (req: Request, res: Response) => {
   try {
     const editComment = await Comment.findByIdAndUpdate(req.params.id, { content: req.body.content });
@@ -67,6 +67,7 @@ const addComment = async (req: Request, res: Response) => {
     res.status(404).json({ message: 'Comment not created' });
   }
 };
+
 
 export { getComments, addComment, deleteComment, editComment };
 

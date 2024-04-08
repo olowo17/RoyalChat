@@ -1,16 +1,14 @@
-import cloudinary from "cloudinary";
+// import cloudinary from "cloudinary";
 import { NextFunction, Request, Response } from "express";
-import jwt, { Secret } from "jsonwebtoken";
 import streamifier from "streamifier";
-import Comment from "../model/Comment";
-import Post from "../model/Post";
 import User from "../model/User";
 import bcrypt from "bcrypt";
+// import { fileToBase64Middleware } from "../middlewares/fileToBase64Middleware";
+import cloudinary from "../middlewares/cloudinaryConfig";
+// import asyncHandler from "middlewares/async";
+import asyncHandler from "express-async-handler";
 
-import {
-  generateAccessToken,
-  generateRefreshToken,
-} from "../utils/generateToken";
+import { generateAccessToken } from "../utils/generateToken";
 
 import sharp from "sharp";
 
@@ -77,63 +75,51 @@ let streamUpload = (req: any) => {
 };
 
 // Register Route
-const registerUser = async (
+const registerUser = asyncHandler(async (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
-  try {
-    const { username, email, password } = req.body;
+): Promise<any> => {
+  const { username, email, password } = req.body;
 
-    // Check if password length is less than 6 characters
-    if (password.length < 6) {
-      return res
-        .status(400)
-        .json({ message: "Password length must be at least 6 characters" });
-    }
-
-    const userExists = await User.findOne({ email });
-
-    if (userExists) {
-      return res.status(404).json({ message: "User already exists" });
-    } else {
-      const salt = await bcrypt.genSalt(10);
-      const hashPassword = await bcrypt.hash(password, salt);
-      const user = new User({
-        username,
-        email,
-        password: hashPassword,
-      });
-      if (req?.file) {
-        const result: any = await streamUpload(req);
-        user.avatar = result.secure_url;
-      }
-
-      const savedUser = await user.save();
-      const accessToken = generateAccessToken(savedUser._id);
-      const refreshToken = generateAccessToken(savedUser._id);
-
-      res.json({
-        _id: savedUser._id,
-        username: savedUser.username,
-        email: savedUser.email,
-        avatar: savedUser.avatar,
-        accessToken,
-      });
-    }
-  } catch (error) {
-    if (error.name === "ValidationError") {
-      // Mongoose validation error occurred
-      const errorMessage = Object.values(error.errors)
-        .map((err: any) => err.message)
-        .join("; ");
-      return res.status(400).json({ message: errorMessage });
-    } else {
-      // Other types of errors
-      return res.status(500).json({ message: "Something went wrong" });
-    }
+  // Check if password length is less than 6 characters
+  if (password.length < 6) {
+    return res
+      .status(400)
+      .json({ message: "Password length must be at least 6 characters" });
   }
-};
+
+  const userExists = await User.findOne({ email });
+
+  if (userExists) {
+    return res.status(404).json({ message: "User already exists" });
+  } else {
+    const salt = await bcrypt.genSalt(10);
+    const hashPassword = await bcrypt.hash(password, salt);
+    const user = new User({
+      username,
+      email,
+      password: hashPassword,
+    });
+    if (req?.file) {
+      const result: any = await streamUpload(req);
+      user.avatar = result.secure_url;
+    }
+
+    const savedUser = await user.save();
+    const accessToken = generateAccessToken(savedUser._id);
+
+    res.json({
+      _id: savedUser._id,
+      username: savedUser.username,
+      email: savedUser.email,
+      avatar: savedUser.avatar,
+      accessToken,
+    });
+  }
+});
+
+
 
 // fetch all users
 
@@ -143,29 +129,6 @@ const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
     .sort({ createdAt: -1 })
     .select("-password");
   res.json(users);
-};
-
-// Refresh Auth
-const refreshAuth = async (req: Request, res: Response, next: NextFunction) => {
-  const refreshToken = req.body.token;
-  if (!refreshToken) {
-    return res.status(401).json("you are not authenticated");
-  }
-  if (!refreshTokens.includes(refreshToken)) {
-    return res.status(403).json("Refresh token is not valid");
-  }
-
-  jwt.verify(refreshToken, process.env.REFRESH_TOKEN as Secret, (id: any) => {
-    refreshTokens = refreshTokens.filter((token) => token !== refreshToken);
-    const newAccessToken = generateAccessToken(id);
-    const newRefreshToken = generateRefreshToken(id);
-
-    refreshTokens.push(newRefreshToken);
-    res.json({
-      accessToken: newAccessToken,
-      refreshToken: newRefreshToken,
-    });
-  });
 };
 
 //get user by Id
@@ -184,49 +147,83 @@ const getUserById = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
+
 // follow user
+
 const followUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (req.params.id === req.user._id) {
-      res.status(404).json({ message: "You cannot follow yourself" });
-    } else {
-      // update the follower and  the user following
-      let followUser = await User.findOneAndUpdate(
-        { _id: req.params.id },
-        { $addToSet: { followers: req.user._id } }
-      );
-      let user = await User.findOneAndUpdate(
-        { _id: req.user._id },
-        { $addToSet: { following: req.params.id } }
-      );
+    
+    // Check if user is trying to follow themselves
+    if (req.params.id === req.user._id.toString()) {
+      return res.status(403).json({ message: "You cannot follow yourself" });
     }
-    return res.status(200).send({ message: "User followed successfully" });
+
+    // Update the user being followed (add follower)
+    const followerUserUpdate = await User.findOneAndUpdate(
+      { _id: req.params.id },
+      { $addToSet: { followers: req.user._id } },
+      { new: true }
+    );
+
+    // Update the authenticated user (add following)
+    const followingUpdate = await User.findOneAndUpdate(
+      { _id: req.user._id },
+      { $addToSet: { following: req.params.id } }, // Add the ID of the user being followed
+      { new: true }
+    );
+
+    // Respond with updated user objects
+    return res.status(200).json({
+      message: "User followed successfully",
+      following: followingUpdate,
+    });
   } catch (err) {
+
     return res
-      .status(500)
-      .send({ message: "Error while tried to follow a user" });
+      .status(404)
+      .json({ message: "Bad Request" });
   }
 };
 
+
+
 // unfollow a user
-const unfollowUser = async (req: Request, res: Response) => {
-  try {
-    let unfollowingUser = await User.findByIdAndUpdate(req.params.id, {
-      $pull: { followers: req.user._id },
-    });
-    return res.status(200).send({ message: "User unfollowed successfully" });
-  } catch (err) {
-    return res.status(500).send({ message: "User UnFollow Failed" });
-  }
-};
+
+
+const unfollowUser = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  // Remove the authenticated user's ID from the followers array of the user being unfollowed
+  const unfollowingUser = await User.findByIdAndUpdate(
+    req.params.id,
+    { $pull: { followers: req.user._id } },
+    { new: true }
+  );
+
+  // Remove the user being unfollowed from the following array of the authenticated user
+  const unfollowedUser = await User.findByIdAndUpdate(
+    req.user._id,
+    { $pull: { following: req.params.id } },
+    { new: true }
+  );
+
+  // Respond with success message and updated user objects
+  res.status(200).json({
+    message: "User unfollowed successfully",
+    unfollowingUser,
+    unfollowedUser,
+  });
+});
+
+
+
+
 
 //get user followers
 
 const getUserFollowers = async (req: Request, res: Response) => {
   try {
-    const currentUser: any = await User.findById(req.params.id);
+    const followed: any = await User.findById(req.params.id);
     const followersArr = await User.find({
-      _id: { $in: currentUser.followers },
+      _id: { $in: followed.followers },
     })
       .select("-password")
       .limit(10);
@@ -251,53 +248,66 @@ const searchUsers = async (req: Request, res: Response) => {
   }
 };
 
-//edit user
-const editUser = async (req: Request, res: Response) => {
+// Update user information
+
+
+const updateUserInfo = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+  const userId = req.params.id;
+
   try {
-    let { username, email, avatar } = req.body;
-    if (req?.file) {
-      const result: any = await streamUpload(req);
-      avatar = result.secure_url;
+    const user = await User.findById(userId);
+    
+    if (!user) {
+    return res.status(404).json({ message: "User not found" });
     }
 
-    // update user info
-    const editedUser: any = await User.findOneAndUpdate(
-      { _id: req.params.id },
-      {
-        $set: {
-          username: username,
-          email: email,
-          avatar: avatar,
-        },
-      },
+    const { username, password } = req.body;
+
+    let avatarUrl;
+    if (req.file) {
+      const result = await cloudinary.v2.uploader.upload(req.file.path);
+      avatarUrl = result.secure_url;
+      console.log(avatarUrl);
+    }
+
+    const updatedFields: any = {};
+    if (username) updatedFields.username = username;
+    if (password) updatedFields.password = password;
+    if (avatarUrl) updatedFields.avatar = avatarUrl;
+
+    const editedUser = await User.findByIdAndUpdate(
+      userId,
+      updatedFields,
       { new: true }
     );
-    // update all posts of user
-    const posts = await Post.find({ user: req.params.id });
-    for (let i = 0; i < posts.length; i++) {
-      await Post.findByIdAndUpdate(posts[i]._id, {
-        $set: {
-          avatar: avatar,
-          username: username,
-        },
-      });
+
+    if (!editedUser) {
+     return res.status(404).json({ message: "User not found" });
     }
 
-    // update all comments of user
-    const comments = await Comment.find({ user: req.params.id });
-    for (let i = 0; i < comments.length; i++) {
-      await Comment.findByIdAndUpdate(comments[i]._id, {
-        $set: {
-          avatar: avatar,
-          username: username,
-        },
-      });
-    }
     res.status(200).json(editedUser);
-  } catch (err) {
-    res.status(500).json({ message: "Error while trying to edit user" });
+  } catch (error) {
+    console.error("Error updating user:", error);
+    res.status(500).json({ message: "Error while updating user" });
   }
-};
+});
+
+
+
+
+
+// Get current logged in user
+
+const getUserProfile = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const user = await User.findById(req.user._id);
+
+    res.status(200).json({
+      success: true,
+      data: user,
+    });
+  }
+);
 
 export {
   loginUser,
@@ -305,8 +315,9 @@ export {
   getAllUsers,
   getUserById,
   getUserFollowers,
+  updateUserInfo,
   followUser,
   searchUsers,
-  editUser,
   unfollowUser,
+  getUserProfile,
 };

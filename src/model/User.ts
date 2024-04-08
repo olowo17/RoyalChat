@@ -7,7 +7,6 @@ export interface IUser extends Document {
     password: string; 
     email: string;
     avatar?: string;
-    // matchPassword: (enteredPassword: string) => Promise<boolean>;
     isVerified?: boolean;
     posts?: Array<object>;
   }

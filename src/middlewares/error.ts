@@ -30,7 +30,6 @@ const errorHandler = (
     error = new ErrorResponse(message, 400);
   }
 
-  // Mongoose Validation Error
 // Mongoose Validation Error
 if (err.name === "ValidationError") {
     const message = Object.values(err.errors).map((val: any) => val.message).join(', ');

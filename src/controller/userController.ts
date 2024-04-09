@@ -1,8 +1,8 @@
 // import cloudinary from "cloudinary";
+import bcrypt from "bcrypt";
 import { NextFunction, Request, Response } from "express";
 import streamifier from "streamifier";
 import User from "../model/User";
-import bcrypt from "bcrypt";
 // import { fileToBase64Middleware } from "../middlewares/fileToBase64Middleware";
 import cloudinary from "../middlewares/cloudinaryConfig";
 // import asyncHandler from "middlewares/async";
@@ -310,14 +310,10 @@ const getUserProfile = asyncHandler(
 );
 
 export {
-  loginUser,
-  registerUser,
-  getAllUsers,
+  followUser, getAllUsers,
   getUserById,
-  getUserFollowers,
-  updateUserInfo,
-  followUser,
-  searchUsers,
-  unfollowUser,
-  getUserProfile,
+  getUserFollowers, getUserProfile, loginUser,
+  registerUser, searchUsers,
+  unfollowUser, updateUserInfo
 };
+

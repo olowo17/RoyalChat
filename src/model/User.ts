@@ -1,6 +1,5 @@
-import mongoose, { Schema, Document, model } from "mongoose";
+import { Schema, Document, model } from "mongoose";
 import bcrypt from 'bcrypt';
-import Post from "./Post";
 
 export interface IUser extends Document {
     username: string;
@@ -43,11 +42,7 @@ const UserSchema: Schema = new Schema(
             },
         ],
         followers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-        isVerified:
-        {
-            type: Boolean,
-            default: false,
-        },
+        
     },
 
     { collection: 'users', timestamps: true }

@@ -1,6 +1,9 @@
-import { Request, RequestHandler, Response } from 'express';
+import { NextFunction, Request, RequestHandler, Response } from 'express';
 import Comment from '../model/Comment';
 import Post from '../model/Post';
+import asyncHandler from 'express-async-handler';
+import ErrorResponse from '../utils/errorResponse';
+import mongoose from 'mongoose';
 
 // GET request to find comments  by post id
 const getComments: RequestHandler = async (req: Request, res: Response) => {
@@ -39,34 +42,54 @@ const editComment = async (req: Request, res: Response) => {
       res.status(200).json({ message: 'Comment edited successfully' });
     }
   } catch (err) {
-    res.status(500).json({ message: 'Comment not edited' });
+    res.status(400).json({ message: 'Comment not edited' });
   }
 };
 
-// Post request to add a comment
-const addComment = async (req: Request, res: Response) => {
+const { ObjectId } = mongoose.Types; 
+
+const addComment = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { avatar, username } = req.user;
-  const { content, createdAt, id } = req.body;
+  const { content, createdAt, id: postId } = req.body; // Rename id to postId for clarity
+  
+  // Check if postId is a valid ObjectId
+  if (!ObjectId.isValid(postId)) {
+   res.status(400).json({message:"post id is invalid"})
+  }
+
+  // Find the post by ID
+  const post = await Post.findById(postId);
+  
+  // Check if the post is not found
+  if (!post) {
+    throw new ErrorResponse("Post not found", 404); // Throw an error if post is not found
+  }
+
+  // Create a new comment object
   const newComment = new Comment({
-    postID: id,
+    postID: postId, // Use postId instead of id for consistency
     avatar: avatar,
     username: username,
     content: content,
     user: req.user._id,
     createdAt: createdAt,
   });
-  await Post.findByIdAndUpdate(req.body.id, {
+
+  // Add the new comment to the post's comments array
+  await Post.findByIdAndUpdate(postId, {
     $push: { comments: newComment },
   });
 
+  // Save the new comment
   const savedComment = await newComment.save();
 
+  // Respond with appropriate messages based on whether the comment was saved successfully
   if (savedComment) {
     res.status(200).json({ message: 'Comment created successfully' });
   } else {
-    res.status(404).json({ message: 'Comment not created' });
+    throw new ErrorResponse("Failed to create comment", 500); // Throw an error if comment saving fails
   }
-};
+});
 
 
 export { getComments, addComment, deleteComment, editComment };

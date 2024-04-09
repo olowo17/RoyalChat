@@ -1,5 +1,3 @@
-// convertImage.ts
-
 import { Express } from 'express';
 
 // Convert uploaded file to base64

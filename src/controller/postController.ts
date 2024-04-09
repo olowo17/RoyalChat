@@ -80,7 +80,7 @@ let streamUpload = (req: any) => {
   });
 };
 
-// A Delete Request which can delete a post
+// A Delete Request to delete a post
 const deletePost = async (req: Request, res: Response) => {
   const postId: string = req.params.id;
   const userId: string = req?.user?._id;
@@ -100,7 +100,7 @@ const deletePost = async (req: Request, res: Response) => {
   }
 };
 
-// A Request which can like a post
+// A Request to like a post
 const likePost = async (req: Request, res: Response) => {
   try {
     const postById = await Post.findByIdAndUpdate(req.body.id, {
@@ -108,7 +108,7 @@ const likePost = async (req: Request, res: Response) => {
     });
     return res.json({ message: 'Post liked successfully', isLiked: true });
   } catch (err) {
-    return err;
+    return res.status(400).json({message:"could not find post"});
   }
 };
 
@@ -120,7 +120,7 @@ const unlikePost = async (req: Request, res: Response) => {
     });
     return res.json({ message: 'Post unliked successfully', isLiked: false });
   } catch (err) {
-    return err;
+    return res.status(400).json({message:err.message});
   }
 };
 //A Request which can  create posts

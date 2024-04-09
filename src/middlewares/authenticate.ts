@@ -26,11 +26,8 @@ const authGuard = async (req: Request, res: Response, next: NextFunction) => {
   ) {
     // Set token from Bearer token in header
     token = req.headers.authorization.split(" ")[1];
-    // Set token from cookie, could use either the header or cookie option
+    
   }
-  // else if (req.cookies.token) {
-  //   token = req.cookies.token;
-  // }
 
   // Make sure token exists
   if (!token) {
@@ -40,12 +37,6 @@ const authGuard = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET) as MyJwtPayload;
-    console.log("decoded", decoded);
-
-    // Find the loggedIn user who now has a token and save it into a variable called user in the request object
-    // so routes that are using the protected middleware can have access to this
-    // This actually originated from the User scehma. a method was attached to it
-    console.log("id", decoded.id);
     req.user = await User.findById(decoded.id);
 
     next();
@@ -55,3 +46,4 @@ const authGuard = async (req: Request, res: Response, next: NextFunction) => {
 };
 
 export { authGuard };
+

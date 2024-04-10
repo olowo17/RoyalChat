@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 
 // Create a Map to store cached data
-const cache = new Map<string, string>();
+const cache = new Map<any, any>();
 
 export const cacheMiddleware = () => {
   return (req: Request, res: Response, next: NextFunction) => {

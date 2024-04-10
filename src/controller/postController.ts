@@ -1,10 +1,9 @@
 import cloudinary from 'cloudinary';
 import { Request, Response } from 'express';
-import streamifier from 'streamifier';
 import Comment from '../model/Comment';
 import Post, { IPost } from '../model/Post';
 import User from '../model/User';
- import sharp from 'sharp';
+import streamUpload from '../utils/upload'
 
 
 
@@ -58,28 +57,6 @@ const getPostById = async (req: Request, res: Response) => {
 
 
 
-let streamUpload = (req: any) => {
-
-  return new Promise((resolve, reject) => {
-    const data:any = sharp(req.file.buffer).webp({ quality: 70 }).toBuffer();
-
-    let stream = cloudinary.v2.uploader.upload_stream(
-      {
-        folder: 'photos',
-      },
-      (error, result) => {
-        if (result) {
-          resolve(result);
-        } else {
-          reject(error);
-        }
-      }
-    );
-
-    streamifier.createReadStream(data).pipe(stream);
-  });
-};
-
 // A Delete Request to delete a post
 const deletePost = async (req: Request, res: Response) => {
   const postId: string = req.params.id;
@@ -123,34 +100,41 @@ const unlikePost = async (req: Request, res: Response) => {
     return res.status(400).json({message:err.message});
   }
 };
-//A Request which can  create posts
+
+
 const addPost = async (req: Request, res: Response) => {
-  const post: IPost = new Post({
-    user: req.user._id,
-    username: req.user.username,
-    avatar: req.user.avatar,
-    text: req.body.text,
-    createdAt: Date.now(),
-    visibility: req.body.visibility,
-    isVerified: req.user.isVerified,
-  });
-  if (req.file) {
-    const result: any = await streamUpload(req);
-    post.image = result.secure_url;
-  }
+  try {
+    const post: IPost = new Post({
+      user: req.user._id,
+      username: req.user.username,
+      avatar: req.user.avatar,
+      text: req.body.text,
+      createdAt: Date.now(),
+      visibility: req.body.visibility,
+      isVerified: req.user.isVerified,
+    });
 
-  const userById: any = await User.findById(req.user._id);
-  const newPost = await post.save();
-  userById.posts.push(post);
+    if (req.file) {
+      const result: any = await streamUpload(req);
+      post.image = result.secure_url;
+    }
 
-  if (userById) {
-    const pushedPost = await userById.save();
-  }
+    const userById: any = await User.findById(req.user._id);
+    const newPost = await post.save();
+    userById.posts.push(post);
 
-  if (newPost) {
+    if (userById) {
+      await userById.save(); // Ensure to await the save operation
+    }
+
     res.json(newPost);
-  } else {
-    res.status(404).send('Error while creating post');
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error while creating post');
   }
 };
+
+
+
+
 export { addPost, getPublicPosts, unlikePost,getLikes, likePost,getPostById, getPrivatePosts, deletePost };

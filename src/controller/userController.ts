@@ -1,16 +1,12 @@
 // import cloudinary from "cloudinary";
 import bcrypt from "bcrypt";
 import { NextFunction, Request, Response } from "express";
-import streamifier from "streamifier";
-import User from "../model/User";
-// import { fileToBase64Middleware } from "../middlewares/fileToBase64Middleware";
-import cloudinary from "../middlewares/cloudinaryConfig";
-// import asyncHandler from "middlewares/async";
 import asyncHandler from "express-async-handler";
+import User from "../model/User";
+import streamUpload from "../utils/upload";
 
 import { generateAccessToken } from "../utils/generateToken";
 
-import sharp from "sharp";
 
 let refreshTokens: Array<object | string> = [];3
 
@@ -76,28 +72,6 @@ const getUserById = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-// streamupload
-
-let streamUpload = (req: any) => {
-  return new Promise((resolve, reject) => {
-    const data: any = sharp(req.file.buffer).webp({ quality: 60 }).toBuffer();
-
-    let stream = cloudinary.v2.uploader.upload_stream(
-      {
-        folder: "avatars",
-      },
-      (error, result) => {
-        if (result) {
-          resolve(result);
-        } else {
-          reject(error);
-        }
-      }
-    );
-
-    streamifier.createReadStream(data).pipe(stream);
-  });
-};
 
 // Register Route
 const registerUser = asyncHandler(async (
@@ -250,28 +224,28 @@ const searchUsers = async (req: Request, res: Response) => {
 
 
 const updateUserInfo = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<any> => {
-  const userId = req.params.id;
+  const userId = req.user._id;
 
   try {
     const user = await User.findById(userId);
     
     if (!user) {
-    return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    const { username, password } = req.body;
+    const { username, password, avatarImage } = req.body;
 
-    let avatarUrl;
+    let avatarUrl: string | undefined;
+
     if (req.file) {
-      const result = await cloudinary.v2.uploader.upload(req.file.path);
+      const result: any = await streamUpload(req); 
       avatarUrl = result.secure_url;
-      console.log(avatarUrl);
     }
 
     const updatedFields: any = {};
     if (username) updatedFields.username = username;
     if (password) updatedFields.password = password;
-    if (avatarUrl) updatedFields.avatar = avatarUrl;
+    if (avatarUrl) updatedFields.avatar = avatarUrl; 
 
     const editedUser = await User.findByIdAndUpdate(
       userId,
@@ -280,7 +254,7 @@ const updateUserInfo = asyncHandler(async (req: Request, res: Response, next: Ne
     );
 
     if (!editedUser) {
-     return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "User not found" });
     }
 
     res.status(200).json(editedUser);
@@ -289,7 +263,6 @@ const updateUserInfo = asyncHandler(async (req: Request, res: Response, next: Ne
     res.status(500).json({ message: "Error while updating user" });
   }
 });
-
 
 
 

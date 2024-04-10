@@ -20,21 +20,18 @@ const app = express();
 const PORT = process.env.PORT || 6000
 
 
-app.use(cors({
-    credentials: true,
-    origin: '*',
-}))
-
+app.use(cors({credentials: true, origin: '*',}))
 app.use(compression())
-
 app.use(cookieParser())
 app.use(helmet());
+
 
 //connect to db
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 connectDb();
+
 
 
 // Routes
@@ -44,7 +41,7 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 app.use('/api/posts', postRoutes);
-app.use('/api/auth', userRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/comment', commentRoutes);
 
 

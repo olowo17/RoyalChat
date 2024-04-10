@@ -12,7 +12,7 @@ import { generateAccessToken } from "../utils/generateToken";
 
 import sharp from "sharp";
 
-let refreshTokens: Array<object | string> = [];
+let refreshTokens: Array<object | string> = [];3
 
 // Login Route
 
@@ -31,7 +31,6 @@ const loginUser = async (req: Request, res: Response, next: NextFunction) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    console.log("user");
     const accessToken = generateAccessToken(user._id);
 
     return res.json({
@@ -48,6 +47,32 @@ const loginUser = async (req: Request, res: Response, next: NextFunction) => {
 
     // Handle unexpected errors
     return res.status(500).json({ message: error.message });
+  }
+};
+
+
+// fetch all users
+
+const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
+  const users = await User.find({ _id: { $ne: req.user._id } })
+    .sort({ createdAt: -1 })
+    .select("-password");
+  res.json(users);
+};
+
+//get user by Id
+const getUserById = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.findById(userId)
+      .select("-password")
+      .populate("posts");
+
+    if (user) {
+      res.json(user);
+    }
+  } catch (err) {
+    res.status(404).json({ message: "User not found" });
   }
 };
 
@@ -120,33 +145,24 @@ const registerUser = asyncHandler(async (
 });
 
 
+//get user followers
 
-// fetch all users
-
-const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
-  // dont display current user in list
-  const users = await User.find({ _id: { $ne: req.user._id } })
-    .sort({ createdAt: -1 })
-    .select("-password");
-  res.json(users);
-};
-
-//get user by Id
-const getUserById = async (req: Request, res: Response, next: NextFunction) => {
+const getUserFollowers = async (req: Request, res: Response) => {
   try {
-    const userId = req.params.id;
-    const user = await User.findById(userId)
+    const followed: any = await User.findById(req.params.id);
+    const followersArr = await User.find({
+      _id: { $in: followed.followers },
+    })
       .select("-password")
-      .populate("posts");
+      .limit(10);
 
-    if (user) {
-      res.json(user);
+    if (followersArr) {
+      res.json({ data: followersArr, message: "Data found" });
     }
   } catch (err) {
-    res.status(404).json({ message: "User not found" });
+    res.status(500).json({ message: "Error while trying to get followers" });
   }
 };
-
 
 // follow user
 
@@ -217,24 +233,6 @@ const unfollowUser = asyncHandler(async (req: Request, res: Response, next: Next
 
 
 
-//get user followers
-
-const getUserFollowers = async (req: Request, res: Response) => {
-  try {
-    const followed: any = await User.findById(req.params.id);
-    const followersArr = await User.find({
-      _id: { $in: followed.followers },
-    })
-      .select("-password")
-      .limit(10);
-
-    if (followersArr) {
-      res.json({ data: followersArr, message: "Data found" });
-    }
-  } catch (err) {
-    res.status(500).json({ message: "Error while trying to get followers" });
-  }
-};
 
 // search users
 
